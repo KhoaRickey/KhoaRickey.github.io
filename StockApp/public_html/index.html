@@ -1,211 +1,527 @@
-<!DOCTYPE html>
-<!--
-To change this license header, choose License Headers in Project Properties.
-To change this template file, choose Tools | Templates
-and open the template in the editor.
--->
-<html>
-    <head>
-        <title>Stock Watcher Application</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="css/jquery.mobile-1.1.0.min.css" />
-	<link rel="stylesheet" href="css/style.css" type="text/css" />      
-	<script src="js/jquery-1.7.2.min.js"></script>
-        <script src="js/jquery.mobile-1.1.0.min.js"></script>
-        <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-        <script src="http://code.highcharts.com/highcharts.js"></script>
-        <script src="http://code.highcharts.com/modules/exporting.js"></script>        
-        <script>
-            var stockarray = [];
-            function PrintDetail(stockid) {
-                $.getJSON( "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.quotes%20where%20symbol%20%3D%20%27" + stockid + "%27&format=json&diagnostics=true&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback=", function( data ) {
-                    var name = data.query.results.quote.Name;
-                    var dividend = data.query.results.quote.DividendShare;
-                    var eps = data.query.results.quote.EPSEstimateCurrentYear;
-                    var yearhigh = data.query.results.quote.YearHigh;
-                    var yearlow = data.query.results.quote.YearLow;
-                    var bookvalue = data.query.results.quote.BookValue;
-                    var open = data.query.results.quote.Open;
-                    var close = data.query.results.quote.PreviousClose;
-                    var volume = data.query.results.quote.Volume;
-                    var high = data.query.results.quote.DaysHigh;
-                    var low = data.query.results.quote.DaysLow;
-                    $("#nameheader").html(name);
-                    $("#detailtable1").html(                       
-                            '<tr><th scope="row">Dividend :</th>' +
-                            '<td>' + dividend + '</td></tr>' +
-                            '<tr><th scope="row">EPS :</th>' +
-                            '<td>' + eps + '</td></tr>' +
-                            '<tr><th scope="row">Year High :</th>' +
-                            '<td>' + yearhigh + '</td></tr>' +
-                            '<tr><th scope="row">Year Low :</th>' +
-                            '<td>' + yearlow + '</td></tr>' +
-                            '<tr><th scope="row">Book Value :</th>' +
-                            '<td>' + bookvalue + '</td></tr>'                            
-                    );
-                    $("#detailtable2").html(                       
-                            '<tr><th scope="row">Open :</th>' +
-                            '<td>' + open + '</td></tr>' +
-                            '<tr><th scope="row">Close :</th>' +
-                            '<td>' + close + '</td></tr>' +
-                            '<tr><th scope="row">Volume :</th>' +
-                            '<td>' + volume + '</td></tr>' +
-                            '<tr><th scope="row">High :</th>' +
-                            '<td>' + high + '</td></tr>' +
-                            '<tr><th scope="row">Low :</th>' +
-                            '<td>' + low + '</td></tr>'                            
-                    );            
-                });
-            }
-            function PrintResult(stockid){
-                    $.getJSON( "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.quotes%20where%20symbol%20%3D%20%27" + stockid + "%27&format=json&diagnostics=true&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback=", function( data ) {
-                        var name = data.query.results.quote.Name;
-                        var symbol = data.query.results.quote.symbol;
-                        var nameField = '<div id="nameField" class="ui-block-a ui-bar ui-bar-b" style="height:50px" >' + name + '<br>' + symbol + '<a data-role="button" href="#detail" id="detailbutton" style="float: right;" value="' + stockid + '"> Detail </a>' +'</div>';
-                        var previousClose = '<div class="ui-block-b ui-bar-c" style="height:50px">' + data.query.results.quote.PreviousClose + '</div>';
-                        var color;
-                        if(data.query.results.quote.Change >= 0){
-                            color = "#00FF00";
-                        }
-                        else{
-                            color = "#FF0000";
-                        }
-                        var changePercent = '<div class="ui-block-c" style="background-color:' + color + ';color:white;height:50px">' + data.query.results.quote.Change_PercentChange + '</div>';
-                        $("#stockview").append(nameField + previousClose + changePercent);     
-                    });
-            }
-            function PrintData(){
-                $("#stockview").empty();
-                var load = localStorage.getItem("keyid");               
-                if(load !== null){
-                    stockarray = JSON.parse(load);
-                }
-                console.log(stockarray);
-                for (var i = 0 ; i < stockarray.length ; i++){
-                    PrintResult(stockarray[i]);
-                }
-            }
-            $(document).ready(function() {
-                
-                PrintData();
-                setInterval('PrintData()',10000);
-                $("#addbutton").click(function() {
-                    var stockcode = $("#input").val();
-                    stockarray.push(stockcode);
-                    localStorage.setItem("keyid", JSON.stringify(stockarray));
-                    
-                    PrintResult(stockcode); 
-                });
-                $(document).on('click', '#detailbutton',function(){
-                    var stockid = $(this).attr("value");
-                    PrintDetail(stockid);
-                    PrintChart(stockid);
-                });
-            });
-            function PrintChart(stockid){
-                var temp = stockid.toUpperCase();
-                $.getJSON("https://www.quandl.com/api/v1/datasets/YAHOO/" + temp + ".json?trim_start=2012-01-01&column=4&sort_order=asc", function(data){
-                    var a = data.data;
-                $('#container').highcharts({
-                    chart: {
-                        zoomType: 'x'
-                    },
-                    title: {
-                        text: 'Closing Price Chart'
-                    },
-                    subtitle: {
-                        text: document.ontouchstart === undefined ?
-                                'Click and drag in the plot area to zoom in' :
-                                'Pinch the chart to zoom in'
-                    },
-                    xAxis: {
-                        type: 'category',
-                        tickInterval: 40,
-                        minTickInterval: 5
-                    },
-                    yAxis: {
-                    title: {
-                        text: 'Closing price'
-                    }
-                    },
-                    legend: {
-                        enabled: false
-                    },
-                    plotOptions: {
-                        area: {
-                            fillColor: {
-                                linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1},
-                                stops: [
-                                    [0, Highcharts.getOptions().colors[0]],
-                                    [1, Highcharts.Color(Highcharts.getOptions().colors[0]).setOpacity(0).get('rgba')]
-                                ]
-                            },
-                            marker: {
-                                radius: 2
-                            },
-                            lineWidth: 1,
-                            states: {
-                                hover: {
-                                    lineWidth: 1
-                                }
-                            },
-                            threshold: null
-                        }
-                    },
 
-                    series: [{
-                        type: 'area',
-                        name: 'Close price',
-                        data: a
-                    }]
-                });
-                });
-            }
-        </script>
+Code
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 
-    </head>
-    <body>
-        <div data-role="page" id="main" data-url="main">
-            <div data-role="header" data-position="fixed">
-              <h1>Stocks</h1><a href="#adddialog" data-rel="dialog" id="add" data-role="button" >Add</a>
-            </div>
-                <div  data-role="content" class="ui-grid-b" id="stockview">
-                </div>
-        </div>
-        <div data-role="dialog" id="adddialog" class="ui-body-c ui-dialog">
-            <form>
-            <div data-role="fieldcontain">
-                <label for="name">Stock Code</label>
-                <input type="text" name="name" id="input" value=""  />
-                <a href="#main" id="addbutton" data-role="button">Add</a>
-            </div> 
-            </form>
-        </div>
-        <div data-role="page" id="detail" data-url="detail">
-          <div data-role="header" data-position="fixed" id="detailheader">
-              <h1 id="nameheader"></h1><a data-rel="back" id="back" data-role="button" >Back</a>
-          </div>
-            <div data-role="content" id="deatailview">
-                <style>
-			table { width:50%; }
-			table caption { text-align:left;  }
-			table thead th { text-align:left; border-bottom-width:1px; border-top-width:1px; }
-			table th, td { text-align:left; padding:3px; font-size:120%;} 
-                </style>
-                <div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
-                <div class="ui-grid-a">
-                <table summary="Stock detail table">
-                    <caption><h2>Stock Detail:</h2></caption>
-                    <tbody id="detailtable1" class="ui-block-a">
-                        
-                    </tbody>
-                    <tbody id="detailtable2" class="ui-block-b">
-                        
-                    </tbody>
-                </table>
-                </div>
-            </div>
-        </div>
-    </body>
-</html>
+<HTML>
+
+ <HEAD>
+
+  <TITLE> New Document </TITLE>
+
+  <META NAME="Generator" CONTENT="EditPlus">
+
+  <META NAME="Author" CONTENT="">
+
+  <META NAME="Keywords" CONTENT="">
+
+  <META NAME="Description" CONTENT="">
+
+  <style>
+
+  html, body {
+
+  height: 100%;
+
+  padding: 0;
+
+  margin: 0;
+
+  background: #000;
+
+}
+
+canvas {
+
+  position: absolute;
+
+  width: 100%;
+
+  height: 100%;
+
+}
+
+  </style>
+
+ </HEAD>
+
+
+ <BODY>
+
+  <canvas id="pinkboard"></canvas>
+
+  <script>
+
+  /*
+
+ * Settings
+
+ */
+
+var settings = {
+
+  particles: {
+
+    length:   500, // maximum amount of particles
+
+    duration:   2, // particle duration in sec
+
+    velocity: 100, // particle velocity in pixels/sec
+
+    effect: -0.75, // play with this for a nice effect
+
+    size:      30, // particle size in pixels
+
+  },
+
+};
+
+
+/*
+
+ * RequestAnimationFrame polyfill by Erik Möller
+
+ */
+
+(function(){var b=0;var c=["ms","moz","webkit","o"];for(var a=0;a<c.length&&!window.requestAnimationFrame;++a){window.requestAnimationFrame=window[c[a]+"RequestAnimationFrame"];window.cancelAnimationFrame=window[c[a]+"CancelAnimationFrame"]||window[c[a]+"CancelRequestAnimationFrame"]}if(!window.requestAnimationFrame){window.requestAnimationFrame=function(h,e){var d=new Date().getTime();var f=Math.max(0,16-(d-b));var g=window.setTimeout(function(){h(d+f)},f);b=d+f;return g}}if(!window.cancelAnimationFrame){window.cancelAnimationFrame=function(d){clearTimeout(d)}}}());
+
+
+/*
+
+ * Point class
+
+ */
+
+var Point = (function() {
+
+  function Point(x, y) {
+
+    this.x = (typeof x !== 'undefined') ? x : 0;
+
+    this.y = (typeof y !== 'undefined') ? y : 0;
+
+  }
+
+  Point.prototype.clone = function() {
+
+    return new Point(this.x, this.y);
+
+  };
+
+  Point.prototype.length = function(length) {
+
+    if (typeof length == 'undefined')
+
+      return Math.sqrt(this.x * this.x + this.y * this.y);
+
+    this.normalize();
+
+    this.x *= length;
+
+    this.y *= length;
+
+    return this;
+
+  };
+
+  Point.prototype.normalize = function() {
+
+    var length = this.length();
+
+    this.x /= length;
+
+    this.y /= length;
+
+    return this;
+
+  };
+
+  return Point;
+
+})();
+
+
+/*
+
+ * Particle class
+
+ */
+
+var Particle = (function() {
+
+  function Particle() {
+
+    this.position = new Point();
+
+    this.velocity = new Point();
+
+    this.acceleration = new Point();
+
+    this.age = 0;
+
+  }
+
+  Particle.prototype.initialize = function(x, y, dx, dy) {
+
+    this.position.x = x;
+
+    this.position.y = y;
+
+    this.velocity.x = dx;
+
+    this.velocity.y = dy;
+
+    this.acceleration.x = dx * settings.particles.effect;
+
+    this.acceleration.y = dy * settings.particles.effect;
+
+    this.age = 0;
+
+  };
+
+  Particle.prototype.update = function(deltaTime) {
+
+    this.position.x += this.velocity.x * deltaTime;
+
+    this.position.y += this.velocity.y * deltaTime;
+
+    this.velocity.x += this.acceleration.x * deltaTime;
+
+    this.velocity.y += this.acceleration.y * deltaTime;
+
+    this.age += deltaTime;
+
+  };
+
+  Particle.prototype.draw = function(context, image) {
+
+    function ease(t) {
+
+      return (--t) * t * t + 1;
+
+    }
+
+    var size = image.width * ease(this.age / settings.particles.duration);
+
+    context.globalAlpha = 1 - this.age / settings.particles.duration;
+
+    context.drawImage(image, this.position.x - size / 2, this.position.y - size / 2, size, size);
+
+  };
+
+  return Particle;
+
+})();
+
+
+/*
+
+ * ParticlePool class
+
+ */
+
+var ParticlePool = (function() {
+
+  var particles,
+
+      firstActive = 0,
+
+      firstFree   = 0,
+
+      duration    = settings.particles.duration;
+
+ 
+
+  function ParticlePool(length) {
+
+    // create and populate particle pool
+
+    particles = new Array(length);
+
+    for (var i = 0; i < particles.length; i++)
+
+      particles[i] = new Particle();
+
+  }
+
+  ParticlePool.prototype.add = function(x, y, dx, dy) {
+
+    particles[firstFree].initialize(x, y, dx, dy);
+
+   
+
+    // handle circular queue
+
+    firstFree++;
+
+    if (firstFree   == particles.length) firstFree   = 0;
+
+    if (firstActive == firstFree       ) firstActive++;
+
+    if (firstActive == particles.length) firstActive = 0;
+
+  };
+
+  ParticlePool.prototype.update = function(deltaTime) {
+
+    var i;
+
+   
+
+    // update active particles
+
+    if (firstActive < firstFree) {
+
+      for (i = firstActive; i < firstFree; i++)
+
+        particles[i].update(deltaTime);
+
+    }
+
+    if (firstFree < firstActive) {
+
+      for (i = firstActive; i < particles.length; i++)
+
+        particles[i].update(deltaTime);
+
+      for (i = 0; i < firstFree; i++)
+
+        particles[i].update(deltaTime);
+
+    }
+
+   
+
+    // remove inactive particles
+
+    while (particles[firstActive].age >= duration && firstActive != firstFree) {
+
+      firstActive++;
+
+      if (firstActive == particles.length) firstActive = 0;
+
+    }
+
+   
+
+   
+
+  };
+
+  ParticlePool.prototype.draw = function(context, image) {
+
+    // draw active particles
+
+    if (firstActive < firstFree) {
+
+      for (i = firstActive; i < firstFree; i++)
+
+        particles[i].draw(context, image);
+
+    }
+
+    if (firstFree < firstActive) {
+
+      for (i = firstActive; i < particles.length; i++)
+
+        particles[i].draw(context, image);
+
+      for (i = 0; i < firstFree; i++)
+
+        particles[i].draw(context, image);
+
+    }
+
+  };
+
+  return ParticlePool;
+
+})();
+
+
+/*
+
+ * Putting it all together
+
+ */
+
+(function(canvas) {
+
+  var context = canvas.getContext('2d'),
+
+      particles = new ParticlePool(settings.particles.length),
+
+      particleRate = settings.particles.length / settings.particles.duration, // particles/sec
+
+      time;
+
+ 
+
+  // get point on heart with -PI <= t <= PI
+
+  function pointOnHeart(t) {
+
+    return new Point(
+
+      160 * Math.pow(Math.sin(t), 3),
+
+      130 * Math.cos(t) - 50 * Math.cos(2 * t) - 20 * Math.cos(3 * t) - 10 * Math.cos(4 * t) + 25
+
+    );
+
+  }
+
+ 
+
+  // creating the particle image using a dummy canvas
+
+  var image = (function() {
+
+    var canvas  = document.createElement('canvas'),
+
+        context = canvas.getContext('2d');
+
+    canvas.width  = settings.particles.size;
+
+    canvas.height = settings.particles.size;
+
+    // helper function to create the path
+
+    function to(t) {
+
+      var point = pointOnHeart(t);
+
+      point.x = settings.particles.size / 2 + point.x * settings.particles.size / 350;
+
+      point.y = settings.particles.size / 2 - point.y * settings.particles.size / 350;
+
+      return point;
+
+    }
+
+    // create the path
+
+    context.beginPath();
+
+    var t = -Math.PI;
+
+    var point = to(t);
+
+    context.moveTo(point.x, point.y);
+
+    while (t < Math.PI) {
+
+      t += 0.01; // baby steps!
+
+      point = to(t);
+
+      context.lineTo(point.x, point.y);
+
+    }
+
+    context.closePath();
+
+    // create the fill
+
+    context.fillStyle = '#ea80b0';
+
+    context.fill();
+
+    // create the image
+
+    var image = new Image();
+
+    image.src = canvas.toDataURL();
+
+    return image;
+
+  })();
+
+ 
+
+  // render that thing!
+
+  function render() {
+
+    // next animation frame
+
+    requestAnimationFrame(render);
+
+   
+
+    // update time
+
+    var newTime   = new Date().getTime() / 1000,
+
+        deltaTime = newTime - (time || newTime);
+
+    time = newTime;
+
+   
+
+    // clear canvas
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+   
+
+    // create new particles
+
+    var amount = particleRate * deltaTime;
+
+    for (var i = 0; i < amount; i++) {
+
+      var pos = pointOnHeart(Math.PI - 2 * Math.PI * Math.random());
+
+      var dir = pos.clone().length(settings.particles.velocity);
+
+      particles.add(canvas.width / 2 + pos.x, canvas.height / 2 - pos.y, dir.x, -dir.y);
+
+    }
+
+   
+
+    // update and draw particles
+
+    particles.update(deltaTime);
+
+    particles.draw(context, image);
+
+  }
+
+ 
+
+  // handle (re-)sizing of the canvas
+
+  function onResize() {
+
+    canvas.width  = canvas.clientWidth;
+
+    canvas.height = canvas.clientHeight;
+
+  }
+
+  window.onresize = onResize;
+
+ 
+
+  // delay rendering bootstrap
+
+  setTimeout(function() {
+
+    onResize();
+
+    render();
+
+  }, 10);
+
+})(document.getElementById('pinkboard'));
+
+  </script>
+
+ </BODY>
+
+</HTML>
+
+
+
+
